@@ -11,6 +11,7 @@
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
 char* filterURL = "";
+char* http_host = "";
 
 void dump(unsigned char* buf, int size) {
 	int i;
@@ -110,18 +111,35 @@ static u_int32_t print_pkt (struct nfq_data *tb)
 	} else {
 		return id;
 	}
+	
+	char *host_start = strstr(http, "Host: ");
+	if (host_start != NULL) {
+		host_start += 6;
+		char *host_end = strchr(host_start, '\r');
+		if (host_end != NULL) {
+			int host_len = host_end - host_start;
+			if (host_len > 0) {
+				http_host = (char *)malloc(host_len + 1);
+				strncpy(http_host, host_start, host_len);
+                		http_host[host_len] = '\0';
+			}
+		}
+	}
 
-	char *http_lower = malloc(ret-20-20-tcpOffset);
-    	for (int i = 0; i < ret-20-20-tcpOffset; i++) {
-        	http_lower[i] = tolower(http[i]);
-    	}
+	printf("host: %s\n\n", http_host);
 
-	if (strstr(http_lower, filterURL) != NULL) {
-        	free(http_lower);
+	if (strstr(http_host, filterURL) != NULL) {
+		if (http_host != "") {
+			free(http_host);
+			http_host = "";
+		}
         	return 0;
     	}
 	
-	free(http_lower);
+	if (http_host != "") {
+		free(http_host);
+		http_host = "";
+	}
 	
 	fputc('\n', stdout);
 
